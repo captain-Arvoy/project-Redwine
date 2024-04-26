@@ -51,9 +51,7 @@ if nav == "EDA":
     if uploaded_file:
         df = pd.read_csv(uploaded_file)
         pipeline(df)
-        
 
-        # Correlation Matrix
         correlation_matrix = df.corr()
         plt.figure(figsize=(10, 8))
         sns.heatmap(correlation_matrix, annot=True, cmap="coolwarm", linewidths=0.5)
@@ -75,7 +73,7 @@ if nav == "EDA":
     
     else:
         st.warning("Please upload a CSV file to visualize data.")
-if nav == "visualisation":
+if nav == "Model metrics":
 
     metrics = {
         "Model": ["Logistic Regression", "SVM", "Random Forest", "Naive Bayes", "XGBoost"],
