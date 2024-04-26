@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import streamlit as st
 import pandas as pd
 import numpy as np
-DATA_URL = ('https://archive.ics.uci.edu/ml/machine-learning-databases/wine/wine.data')
 nav = st.sidebar.radio("Navigation",["Home","EDA","Model metrics","model comparision"])
 def load_data(nrows):
     data = pd.read_csv(DATA_URL,nrows=nrows)
