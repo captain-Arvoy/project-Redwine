@@ -30,9 +30,9 @@ def handleMissingData(df):
 def handleCategoricalData(df):
     from sklearn.preprocessing import LabelEncoder
     lencoders = {}
-    for col in oversampled.select_dtypes(include=['object']).columns:
+    for col in df.select_dtypes(include=['object']).columns:
         lencoders[col] = LabelEncoder()
-        oversampled[col] = lencoders[col].fit_transform(oversampled[col])
+        df[col] = lencoders[col].fit_transform(df[col])
 def pipeline(df):
     handleMissingData(df)    
     handleCategoricalData(df)
@@ -50,7 +50,7 @@ if nav == "EDA":
     if uploaded_file:
         df = pd.read_csv(uploaded_file)
         pipeline(df)
-
+        st.write("pipeline performed")
         correlation_matrix = df.corr()
         plt.figure(figsize=(10, 8))
         sns.heatmap(correlation_matrix, annot=True, cmap="coolwarm", linewidths=0.5)
@@ -68,7 +68,6 @@ if nav == "EDA":
         sns.scatterplot(data=df, x='Temp3pm', y='Rainfall', hue='RainTomorrow')
         plt.title("Scatter Plot: Temp3pm vs. Rainfall")
         plt.show()
-
     
     else:
         st.warning("Please upload a CSV file to visualize data.")
