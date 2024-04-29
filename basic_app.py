@@ -1,3 +1,4 @@
+from sklearn.preprocessing import LabelEncoder
 import pandas as pd
 import os
 import joblib
@@ -153,7 +154,6 @@ if nav == 'model comparision':
 if nav == 'test and predict':
     model_dir = "/mnt/codebox/python/project/models/"
     
-    # Function to load the selected model from the specified directory
     def load_model(model_name):
         model_path = os.path.join(model_dir, f"{model_name}.pkl")
         if os.path.exists(model_path):
@@ -161,53 +161,91 @@ if nav == 'test and predict':
         else:
             raise FileNotFoundError(f"Model {model_name} not found at {model_path}")
     
-    # Streamlit app to predict rainfall
-    st.title("Test and Predict")
+    def preprocess_data(dataframe, label_encoders):
+        categorical_columns = ["Location"]  
+        for col in categorical_columns:
+            if col in dataframe.columns:
+                if col not in label_encoders:
+                    label_encoders[col] = LabelEncoder()  
+                dataframe[col] = label_encoders[col].fit_transform(dataframe[col])
     
-    # Step 1: File upload for test cases
-    uploaded_file = st.file_uploader("Upload a CSV file with test cases", type=["csv"])
-    if uploaded_file is not None:
+        columns_to_drop = ["Date"]  # Drop columns that are not part of the model's feature set
+        dataframe.drop(columns=columns_to_drop, errors='ignore', inplace=True)
+        
+        return dataframe
+    
+    # Streamlit app
+    st.title("Rainfall Prediction with Streamlit")
+    
+    # New Input Field: URL link for dataset
+    dataset_url = st.text_input("Enter the URL for a CSV dataset")
+    
+    # Existing Input Field: File upload for test cases
+    uploaded_file = st.file_uploader("Or, upload a CSV file with test data", type=["csv"])
+    
+    # Step 1: Load data from the provided URL or uploaded file
+    if dataset_url:
+        try:
+            test_data = pd.read_csv(dataset_url)
+            st.write("Data loaded from the provided URL:")
+            st.dataframe(test_data.head())
+        except Exception as e:
+            st.error(f"Error loading data from URL: {str(e)}")
+    elif uploaded_file:
         test_data = pd.read_csv(uploaded_file)
-        st.write("Uploaded data preview:")
+        st.write("Data loaded from the uploaded file:")
         st.dataframe(test_data.head())
+    else:
+        st.warning("Please enter a URL or upload a CSV file to proceed.")
     
-        # Step 2: Model selection
-        model_choice = st.selectbox(
-            "Select a model to predict rainfall",
-            ["Support_Vector_Machine", "Random_Forest", "Gaussian_Naive_Bayes", "XGBoost"]
+    # Step 2: Model selection dropdown
+    model_choice = st.selectbox(
+        "Select a model to predict rainfall",
+        ["Logistic Regression", "Support Vector Machine", "Random Forest", "Gaussian Naive Bayes", "XGBoost"]
+    )
+    
+    # Step 3: Load the selected model
+    try:
+        model = load_model(model_choice)
+    
+        # Step 4: Preprocess the test data
+        label_encoders = {}  # Store label encoders to maintain consistency
+        test_data = preprocess_data(test_data, label_encoders)
+    
+        # Step 5: Ensure test data has correct features
+        expected_features = [
+            "Location", "MinTemp", "MaxTemp", "Rainfall", "Evaporation", "Sunshine", "WindGustDir",
+            "WindGustSpeed", "WindDir9am", "WindDir3pm", "WindSpeed9am", "WindSpeed3pm", "Humidity9am",
+            "Humidity3pm", "Pressure9am", "Pressure3pm", "Cloud9am", "Cloud3pm", "Temp9am", "Temp3pm", 
+            "RainToday"
+        ]
+        test_data = test_data[expected_features]  # Keep only the expected features
+    
+        # Step 6: Make predictions with the loaded model
+        predictions = model.predict(test_data)
+    
+        # Step 7: Display predictions
+        prediction_results = test_data.copy()
+        prediction_results["Prediction"] = predictions
+        prediction_results["RainPrediction"] = prediction_results["Prediction"].apply(
+            lambda x: "Rain" if x == 1 else "No Rain"
         )
     
-        # Step 3: Load the selected model
-        try:
-            model = load_model(model_choice)
+        st.write("Prediction Results:")
+        st.dataframe(prediction_results)
     
-            # Step 4: Make predictions
-            # Assuming 'features' is a list of feature names used to train the model
-            features = test_data.columns.drop("RainTomorrow")  # Exclude the target variable
-            predictions = model.predict(test_data[features])
+        # Optional: Download the predictions
+        if st.button("Download Predictions CSV"):
+            prediction_results.to_csv("rainfall_predictions.csv", index=False)
+            st.download_button(
+                label="Download Predictions CSV",
+                data=prediction_results.to_csv(index=False),
+                file_name="rainfall_predictions.csv",
+                mime="text/csv"
+            )
     
-            # Step 5: Show predictions
-            st.write("Prediction Results:")
-            prediction_results = test_data.copy()  # Copy the test data
-            prediction_results["Prediction"] = predictions
-            prediction_results["RainPrediction"] = prediction_results["Prediction"].apply(lambda x: "Rain" if x == 1 else "No Rain")
-            
-            st.dataframe(prediction_results)
-    
-            # Optional: Provide a download option for predictions
-            if st.button("Download Predictions"):
-                prediction_results.to_csv("rainfall_predictions.csv", index=False)
-                st.download_button(
-                    label="Download Predictions CSV",
-                    data=prediction_results.to_csv(index=False),
-                    file_name="rainfall_predictions.csv",
-                    mime="text/csv"
-                )
-        except FileNotFoundError as e:
-            st.error(str(e))
-    
-    else:
-        st.warning("Please upload a CSV file to proceed.")
+    except Exception as e:
+        st.error(f"An error occurred: {str(e)}")
 
 
     
