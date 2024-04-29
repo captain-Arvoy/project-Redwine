@@ -1,11 +1,13 @@
 import pandas as pd
+import os
+import joblib
 from sklearn.metrics import confusion_matrix
 import seaborn as sns
 import matplotlib.pyplot as plt
 import streamlit as st
 import pandas as pd
 import numpy as np
-nav = st.sidebar.radio("Navigation",["Home","EDA","Model metrics","model comparision"])
+nav = st.sidebar.radio("Navigation",["Home","EDA","Model metrics","model comparision","test and predict"])
 def load_data(nrows):
     data = pd.read_csv(DATA_URL,nrows=nrows)
     lowercase = lambda x: str(x).lower()
@@ -148,6 +150,64 @@ if nav == 'model comparision':
     ax.set_ylabel(selected_metric)
     ax.set_title(f"{selected_metric} across Models")
     st.pyplot(fig)
+if nav == 'test and predict':
+    model_dir = "/mnt/codebox/python/project/models/"
+    
+    # Function to load the selected model from the specified directory
+    def load_model(model_name):
+        model_path = os.path.join(model_dir, f"{model_name}.pkl")
+        if os.path.exists(model_path):
+            return joblib.load(model_path)
+        else:
+            raise FileNotFoundError(f"Model {model_name} not found at {model_path}")
+    
+    # Streamlit app to predict rainfall
+    st.title("Test and Predict")
+    
+    # Step 1: File upload for test cases
+    uploaded_file = st.file_uploader("Upload a CSV file with test cases", type=["csv"])
+    if uploaded_file is not None:
+        test_data = pd.read_csv(uploaded_file)
+        st.write("Uploaded data preview:")
+        st.dataframe(test_data.head())
+    
+        # Step 2: Model selection
+        model_choice = st.selectbox(
+            "Select a model to predict rainfall",
+            ["Support_Vector_Machine", "Random_Forest", "Gaussian_Naive_Bayes", "XGBoost"]
+        )
+    
+        # Step 3: Load the selected model
+        try:
+            model = load_model(model_choice)
+    
+            # Step 4: Make predictions
+            # Assuming 'features' is a list of feature names used to train the model
+            features = test_data.columns.drop("RainTomorrow")  # Exclude the target variable
+            predictions = model.predict(test_data[features])
+    
+            # Step 5: Show predictions
+            st.write("Prediction Results:")
+            prediction_results = test_data.copy()  # Copy the test data
+            prediction_results["Prediction"] = predictions
+            prediction_results["RainPrediction"] = prediction_results["Prediction"].apply(lambda x: "Rain" if x == 1 else "No Rain")
+            
+            st.dataframe(prediction_results)
+    
+            # Optional: Provide a download option for predictions
+            if st.button("Download Predictions"):
+                prediction_results.to_csv("rainfall_predictions.csv", index=False)
+                st.download_button(
+                    label="Download Predictions CSV",
+                    data=prediction_results.to_csv(index=False),
+                    file_name="rainfall_predictions.csv",
+                    mime="text/csv"
+                )
+        except FileNotFoundError as e:
+            st.error(str(e))
+    
+    else:
+        st.warning("Please upload a CSV file to proceed.")
 
 
     
